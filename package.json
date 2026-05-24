@@ -5,10 +5,17 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "watermark-kit": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/nodeImage.d.ts",
+      "import": "./dist/nodeImage.js"
     }
   },
   "files": [
@@ -28,7 +35,13 @@
     "typescript"
   ],
   "license": "MIT",
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  },
   "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/pngjs": "^6.0.5",
+    "tsx": "^4.22.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.4"
   }
