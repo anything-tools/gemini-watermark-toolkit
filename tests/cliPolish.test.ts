@@ -111,4 +111,79 @@ describe('CLI polish', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('calibrates a template JSON from a clean and watermarked PNG pair', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'watermark-kit-calibrate-'));
+    try {
+      const cleanPath = join(dir, 'clean.png');
+      const watermarkedPath = join(dir, 'watermarked.png');
+      const templatePath = join(dir, 'template.json');
+      const clean = makeBaseImage(128, 128);
+      const template = defaultRegistry.get('gemini-visible-white-48')!;
+      const watermarked = overlayTemplate(clean, template, 40, 48);
+      await writePngImage(cleanPath, clean);
+      await writePngImage(watermarkedPath, watermarked);
+
+      const { stdout, stderr } = await execFileAsync('npx', [
+        'tsx', cliPath, 'calibrate', cleanPath, watermarkedPath,
+        '--region', '40,48,48,48',
+        '--id', 'local-gemini-48',
+        '--version', 'test-v1',
+        '-o', templatePath,
+        '--json'
+      ], { cwd: repoRoot, timeout: 30_000 });
+
+      const summary = JSON.parse(stdout);
+      const serialized = JSON.parse(await readFile(templatePath, 'utf8'));
+      expect(stderr).toBe('');
+      expect(summary).toMatchObject({ id: 'local-gemini-48', width: 48, height: 48, output: templatePath });
+      expect(serialized).toMatchObject({
+        id: 'local-gemini-48',
+        width: 48,
+        height: 48,
+        color: [255, 255, 255],
+        blendMode: 'normal-alpha',
+        version: 'test-v1'
+      });
+      expect(serialized.alpha).toHaveLength(48 * 48);
+      expect(serialized.alpha.some((value: number) => value > 0.05)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses an external calibrated template JSON during remove', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'watermark-kit-template-remove-'));
+    try {
+      const input = join(dir, 'watermarked.png');
+      const output = join(dir, 'restored.png');
+      const templatePath = join(dir, 'template.json');
+      const clean = makeBaseImage(1024, 1024);
+      const template = defaultRegistry.get('gemini-visible-white-96')!;
+      const watermarked = overlayTemplate(clean, template, 864, 864);
+      await writePngImage(input, watermarked);
+      await import('node:fs/promises').then(({ writeFile }) => writeFile(templatePath, JSON.stringify({
+        id: 'custom-gemini-96',
+        width: template.width,
+        height: template.height,
+        alpha: Array.from(template.alpha),
+        color: template.color,
+        blendMode: template.blendMode,
+        version: 'test-v1',
+        provider: 'gemini'
+      })));
+
+      const { stdout, stderr } = await execFileAsync('npx', [
+        'tsx', cliPath, 'remove', input, '-o', output, '--template', templatePath, '--json'
+      ], { cwd: repoRoot, timeout: 30_000 });
+
+      const meta = JSON.parse(stdout);
+      expect(stderr).toBe('');
+      expect(meta.applied).toBe(true);
+      expect(meta.templateId).toBe('custom-gemini-96');
+      await expect(stat(output)).resolves.toMatchObject({ size: expect.any(Number) });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
