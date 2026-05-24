@@ -46,13 +46,35 @@ const restored = restoreWatermark(image, validation.best, { mode: 'safe' });
 
 `aggressive` lowers thresholds and uses stronger alpha restoration. Use it only when the batch is expected to contain this visible Gemini watermark.
 
+## CLI
+
+The Node CLI currently supports PNG input/output only:
+
+```sh
+watermark-kit remove input.png -o output.png --json
+watermark-kit benchmark --mode safe --json
+```
+
+You can calibrate an external template from a permitted clean/watermarked PNG pair and use it for removal:
+
+```sh
+watermark-kit calibrate clean.png watermarked.png \
+  --region 864,864,96,96 \
+  --id local-gemini-96 \
+  --version local-v1 \
+  -o template.json \
+  --json
+
+watermark-kit remove watermarked.png -o restored.png --template template.json --json
+```
+
 ## Limitations
 
 - Targets known visible semi-transparent white Gemini-style marks.
 - Does not remove invisible SynthID, provenance metadata, signatures, or arbitrary colored/complex watermarks.
 - Does not perform AI inpainting.
-- Works on raw RGBA pixels. It does not decode PNG, JPEG, or WebP by itself.
-- Bundled templates are synthetic approximations; a planned calibration CLI should let users benchmark and tune templates against permitted local samples.
+- Core APIs work on raw RGBA pixels. The Node CLI decodes/encodes PNG only; it does not support JPEG or WebP.
+- Bundled templates are synthetic approximations; the calibration CLI lets users benchmark and tune templates against permitted local samples.
 
 ## Development
 
