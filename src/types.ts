@@ -24,6 +24,40 @@ export interface WatermarkTemplate {
   version: string;
   source?: string;
   provider?: string;
+  calibratedAt?: string;
+  notes?: string;
+}
+
+export interface SerializedWatermarkTemplate {
+  id: string;
+  width: number;
+  height: number;
+  alpha: number[];
+  color: [number, number, number];
+  blendMode: BlendMode;
+  version: string;
+  source?: string;
+  provider?: string;
+  calibratedAt?: string;
+  notes?: string;
+}
+
+export interface TemplateCalibrationRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface TemplateCalibrationOptions {
+  id: string;
+  version: string;
+  region: TemplateCalibrationRegion;
+  color?: [number, number, number];
+  provider?: string;
+  source?: string;
+  calibratedAt?: string;
+  notes?: string;
 }
 
 export interface WatermarkTemplateRegistry {
