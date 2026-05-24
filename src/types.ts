@@ -1,6 +1,7 @@
 export type WatermarkPresetName = 'gemini';
 export type WatermarkMode = 'safe' | 'aggressive';
 export type BlendMode = 'normal-alpha';
+export type RestorationRefinement = 'none' | 'fixed-alpha-gain' | 'alpha-gain-search';
 
 export interface PixelImage {
   width: number;
@@ -107,6 +108,7 @@ export interface RestoreOptions {
   preset?: WatermarkPresetName;
   mode?: WatermarkMode;
   alphaGain?: number;
+  alphaGainSearch?: number[];
   registry?: WatermarkTemplateRegistry;
 }
 
@@ -137,6 +139,9 @@ export interface RestoreResult {
   image: NormalizedImage;
   changed: boolean;
   candidate?: ValidatedCandidate | Candidate;
+  alphaGain?: number;
+  passCount?: number;
+  refinement?: RestorationRefinement;
 }
 
 export interface RemoveWatermarkMeta {
@@ -151,6 +156,9 @@ export interface RemoveWatermarkMeta {
   residualAfter?: number;
   residualReduction?: number;
   artifactScore?: number;
+  alphaGain?: number;
+  passCount: number;
+  refinement: RestorationRefinement;
   warnings: string[];
   skipReason?: string;
 }
