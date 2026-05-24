@@ -19,6 +19,7 @@ import type {
 
 export type * from './types.js';
 export { detector, restorer, validator };
+export { createBenchmarkFixtures, runBenchmark } from './benchmark.js';
 export { calibrateTemplateFromPair, deserializeTemplate, serializeTemplate } from './calibration.js';
 export { createDefaultLayoutPriors, GeminiCornerSearchPrior, GeminiOfficialLayoutPrior, OFFICIAL_GEMINI_IMAGE_SIZES } from './layoutPriors.js';
 export { createDefaultRegistry, defaultRegistry, getPreset, TemplateRegistry } from './registry.js';
