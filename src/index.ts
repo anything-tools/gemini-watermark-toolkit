@@ -44,11 +44,13 @@ export function restoreWatermark(
   return restore(normalizeImage(image), candidate, options);
 }
 
-function buildMeta(validation: ValidationResult, changed: boolean, candidate?: Candidate): RemoveWatermarkMeta {
+function buildMeta(validation: ValidationResult, restored: RestoreResult, candidate?: Candidate): RemoveWatermarkMeta {
   const best = validation.best;
-  if (!changed || !best || !candidate) {
+  if (!restored.changed || !best || !candidate) {
     return {
       applied: false,
+      refinement: 'none',
+      passCount: 0,
       warnings: [],
       skipReason: validation.candidates.length === 0 ? 'no-watermark-detected' : 'validation-rejected'
     };
@@ -71,6 +73,9 @@ function buildMeta(validation: ValidationResult, changed: boolean, candidate?: C
     residualAfter: best.residualAfter,
     residualReduction: best.residualReduction,
     artifactScore: best.artifactScore,
+    alphaGain: restored.alphaGain,
+    passCount: restored.passCount ?? 1,
+    refinement: restored.refinement ?? 'fixed-alpha-gain',
     warnings
   };
 }
@@ -100,7 +105,7 @@ export function removeWatermark(image: PixelImage, options: RemoveWatermarkOptio
     mode,
     registry
   });
-  const meta = buildMeta(validation, restored.changed, validation.best);
+  const meta = buildMeta(validation, restored, validation.best);
 
   return {
     ...restored,
