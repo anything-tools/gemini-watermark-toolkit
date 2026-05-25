@@ -25,6 +25,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "generate:templates": "node scripts/generate-gemini-templates.mjs",
+    "check:templates": "node scripts/validate-gemini-templates.mjs",
     "pretest": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

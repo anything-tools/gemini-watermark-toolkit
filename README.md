@@ -33,7 +33,7 @@ const restored = restoreWatermark(image, validation.best, { mode: 'safe' });
 
 ## Architecture
 
-- Template registry: built-in calibrated visible-white Gemini-style templates for `48x48`, `56x56`, and `96x96`. These are approximations derived from permitted clean/watermarked examples, not official Google assets.
+- Template registry: built-in calibrated visible-white Gemini-style templates for `48x48`, `56x56`, and `96x96`. These are approximations derived from permitted clean/watermarked examples, not official Google assets. Source template data lives in `templates/*.json`; `src/geminiTemplates.ts` is generated from those assets.
 - Layout priors: data-driven Gemini catalog positions. Observed `1024x1024`, `1184x864`, and `864x1184` images use a `48x48` logo with `32px` right/bottom margins; `1200x1200` uses `56x56` with `38px` margins; `2816x1536` uses `96x96` with `64px` margins.
 - Detector: scores prior-generated candidates with spatial luminance correlation and gradient correlation. Full-image exhaustive scan is opt-in.
 - Validator: trial-restores candidates on a clone, then scores residual reduction, near-black increase, texture penalty, and artifact risk.
@@ -68,6 +68,32 @@ watermark-kit calibrate clean.png watermarked.png \
 watermark-kit remove watermarked.png -o restored.png --template template.json --json
 ```
 
+## Template Assets
+
+Built-in Gemini template alpha maps are stored as auditable JSON assets:
+
+```sh
+npm run generate:templates
+npm run check:templates
+```
+
+`generate:templates` emits the generated TypeScript factory used at runtime. `check:templates` validates asset dimensions, alpha ranges, supported template sizes, and that the generated file is up to date.
+
+## Calibration Samples
+
+Clean/watermarked PNG pairs remain the most reliable calibration source because they measure the visible overlay against real image content. Keep those pairs as the ground truth when changing bundled templates or validating local templates.
+
+Pure-color watermarked samples can make calibration faster. Generate multiple flat PNG/RGBA prompts at the target output sizes, ideally black, white, mid-gray, and saturated colors such as red, green, and blue. Name samples with enough metadata to audit them later, for example `gemini-visible-white-1024-black-48.png`, `gemini-visible-white-1200-gray-56.png`, or `gemini-visible-white-2816x1536-blue-96.png`.
+
+Recommended coverage:
+
+- Include all known template sizes: `48x48`, `56x56`, and `96x96`.
+- Include all known output layouts used by Gemini priors: `1024x1024`, `1184x864`, `864x1184`, `1200x1200`, and `2816x1536`.
+- Capture at least black, white, and mid-gray for alpha estimation; add saturated RGB samples when checking whether the assumed white normal-alpha model still holds.
+- Verify pure-color-derived templates against real complex clean/watermarked pairs before bundling them.
+
+Caveats: Gemini may not produce perfectly flat images even when prompted for a flat color, and compression, antialiasing, or prompt artifacts can bias alpha estimates. Treat pure-color samples as calibration aids, not replacements for pair validation. This toolkit remains scoped to visible Gemini-style PNG/RGBA watermarks and does not make JPEG/WebP, invisible SynthID, metadata, or arbitrary watermark claims.
+
 ## Limitations
 
 - Targets known visible semi-transparent white Gemini-style marks.
@@ -81,6 +107,7 @@ watermark-kit remove watermarked.png -o restored.png --template template.json --
 ```sh
 npm config set registry https://registry.npmjs.org/
 npm install
+npm run check:templates
 npm run typecheck
 npm test
 npm run build

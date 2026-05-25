@@ -1,6 +1,10 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 import {
   calibrateTemplateFromPair,
+  defaultRegistry,
   deserializeTemplate,
   serializeTemplate,
   TemplateRegistry,
@@ -147,5 +151,37 @@ describe('template serialization and calibration', () => {
         color: [255, Number.NaN, 255]
       })
     ).toThrow(/color/);
+  });
+
+  it('keeps built-in Gemini template JSON assets structurally valid and registered', async () => {
+    for (const size of [48, 56, 96] as const) {
+      const assetPath = join(process.cwd(), 'templates', `gemini-visible-white-${size}.json`);
+      const asset = JSON.parse(await readFile(assetPath, 'utf8'));
+      const template = defaultRegistry.get(`gemini-visible-white-${size}`);
+
+      expect(asset).toMatchObject({
+        id: `gemini-visible-white-${size}`,
+        width: size,
+        height: size,
+        color: [255, 255, 255],
+        blendMode: 'normal-alpha',
+        version: 'calibrated-examples-2026-05',
+        provider: 'gemini'
+      });
+      expect(asset.alpha).toHaveLength(size * size);
+      expect(asset.alpha.every((alpha: number) => Number.isFinite(alpha) && alpha >= 0 && alpha <= 1)).toBe(true);
+      expect(template).toMatchObject({
+        id: asset.id,
+        width: asset.width,
+        height: asset.height,
+        color: asset.color,
+        blendMode: asset.blendMode,
+        version: asset.version,
+        source: asset.source,
+        provider: asset.provider,
+        notes: asset.notes
+      });
+      expect(Array.from(template!.alpha)).toEqual(Array.from(Float32Array.from(asset.alpha)));
+    }
   });
 });
