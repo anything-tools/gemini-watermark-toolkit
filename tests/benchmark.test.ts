@@ -17,16 +17,16 @@ describe('benchmark fixture framework', () => {
     const second = createBenchmarkFixtures();
 
     expect(first.map((fixture) => fixture.id)).toEqual([
-      'synthetic-gemini-96-1k-official',
+      'synthetic-gemini-48-1024x1024-observed',
       'synthetic-clean-1k-negative',
-      'synthetic-gemini-96-new-margin-2816x1536'
+      'synthetic-gemini-96-2816x1536-observed'
     ]);
     expect(first.map((fixture) => fixture.kind)).toEqual(['positive', 'negative', 'positive']);
-    expect(fixtureById(first, 'synthetic-gemini-96-1k-official').expected).toMatchObject({
+    expect(fixtureById(first, 'synthetic-gemini-48-1024x1024-observed').expected).toMatchObject({
       applied: true,
-      templateId: 'gemini-visible-white-96',
-      x: 864,
-      y: 864
+      templateId: 'gemini-visible-white-48',
+      x: 944,
+      y: 944
     });
     expect(fixtureById(first, 'synthetic-clean-1k-negative').expected).toEqual({ applied: false });
     expect(first.map((fixture) => ({

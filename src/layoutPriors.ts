@@ -3,29 +3,30 @@ import type { Candidate, LayoutPrior, WatermarkTemplateRegistry } from './types.
 interface GeminiSizeEntry {
   width: number;
   height: number;
-  tier: '0.5k' | '1k' | '2k' | '4k' | '2k-new-margin';
+  tier: '0.5k' | '1k' | '1k-square-1200' | '2k' | '4k';
 }
 
 interface GeminiWatermarkConfig {
   templateId: string;
-  logoSize: 48 | 96;
+  logoSize: 48 | 56 | 96;
   marginRight: number;
   marginBottom: number;
 }
 
 const GEMINI_TIER_CONFIGS: Record<GeminiSizeEntry['tier'], GeminiWatermarkConfig> = {
   '0.5k': { templateId: 'gemini-visible-white-48', logoSize: 48, marginRight: 32, marginBottom: 32 },
-  '1k': { templateId: 'gemini-visible-white-96', logoSize: 96, marginRight: 64, marginBottom: 64 },
+  '1k': { templateId: 'gemini-visible-white-48', logoSize: 48, marginRight: 32, marginBottom: 32 },
+  '1k-square-1200': { templateId: 'gemini-visible-white-56', logoSize: 56, marginRight: 38, marginBottom: 38 },
   '2k': { templateId: 'gemini-visible-white-96', logoSize: 96, marginRight: 64, marginBottom: 64 },
-  '4k': { templateId: 'gemini-visible-white-96', logoSize: 96, marginRight: 64, marginBottom: 64 },
-  '2k-new-margin': { templateId: 'gemini-visible-white-96-new-margin', logoSize: 96, marginRight: 192, marginBottom: 192 }
+  '4k': { templateId: 'gemini-visible-white-96', logoSize: 96, marginRight: 64, marginBottom: 64 }
 };
 
 export const OFFICIAL_GEMINI_IMAGE_SIZES: readonly GeminiSizeEntry[] = Object.freeze([
   ...createEntries('0.5k', [[512, 512], [256, 1024], [192, 1536], [424, 632], [632, 424], [448, 600], [1024, 256], [600, 448], [464, 576], [576, 464], [1536, 192], [384, 688], [688, 384], [792, 168]]),
   ...createEntries('1k', [[1024, 1024], [512, 2048], [384, 3072], [848, 1264], [1264, 848], [896, 1200], [2048, 512], [1200, 896], [928, 1152], [1152, 928], [3072, 384], [768, 1376], [1376, 768], [1408, 768], [1584, 672], [832, 1248], [1248, 832], [864, 1184], [1184, 864], [896, 1152], [768, 1344], [1344, 768], [1536, 672]]),
+  ...createEntries('1k-square-1200', [[1200, 1200]]),
   ...createEntries('2k', [[2048, 2048], [1024, 4096], [768, 6144], [1696, 2528], [2528, 1696], [1792, 2400], [4096, 1024], [2400, 1792], [1856, 2304], [2304, 1856], [6144, 768], [1536, 2752], [2752, 1536], [3168, 1344]]),
-  ...createEntries('2k-new-margin', [[2816, 1536]]),
+  ...createEntries('2k', [[2816, 1536]]),
   ...createEntries('4k', [[4096, 4096], [2048, 8192], [1536, 12288], [3392, 5056], [5056, 3392], [3584, 4800], [8192, 2048], [4800, 3584], [3712, 4608], [4608, 3712], [12288, 1536], [3072, 5504], [5504, 3072], [6336, 2688]])
 ]);
 
@@ -85,10 +86,6 @@ export class GeminiOfficialLayoutPrior implements LayoutPrior {
     const exact = OFFICIAL_GEMINI_IMAGE_SIZES.find((entry) => entry.width === imageWidth && entry.height === imageHeight);
     if (exact) {
       addCandidate(candidates, registry, imageWidth, imageHeight, GEMINI_TIER_CONFIGS[exact.tier], this.id, 1);
-      const base = GEMINI_TIER_CONFIGS[exact.tier];
-      if (base.logoSize === 96 && exact.tier !== '2k-new-margin') {
-        addCandidate(candidates, registry, imageWidth, imageHeight, GEMINI_TIER_CONFIGS['2k-new-margin'], `${this.id}:secondary-new-margin`, 0.72);
-      }
       return dedupe(candidates);
     }
 
@@ -108,8 +105,9 @@ export class GeminiOfficialLayoutPrior implements LayoutPrior {
     for (const item of near) {
       const base = GEMINI_TIER_CONFIGS[item.entry.tier];
       const scale = (item.sx + item.sy) / 2;
-      const logoSize = Math.round(base.logoSize * scale) <= 64 ? 48 : 96;
-      const templateId = logoSize === 48 ? 'gemini-visible-white-48' : base.templateId.includes('new-margin') ? 'gemini-visible-white-96-new-margin' : 'gemini-visible-white-96';
+      const scaledLogoSize = Math.round(base.logoSize * scale);
+      const logoSize = scaledLogoSize <= 52 ? 48 : scaledLogoSize <= 76 ? 56 : 96;
+      const templateId = logoSize === 48 ? 'gemini-visible-white-48' : logoSize === 56 ? 'gemini-visible-white-56' : 'gemini-visible-white-96';
       addCandidate(candidates, registry, imageWidth, imageHeight, {
         templateId,
         logoSize,

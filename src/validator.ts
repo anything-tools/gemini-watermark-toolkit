@@ -72,7 +72,7 @@ function evaluate(image: NormalizedImage, candidate: Candidate, options: Validat
   const trial = restore(image, candidate, {
     mode: options.mode,
     registry,
-    alphaGain: options.mode === 'aggressive' ? 1.16 : 0.9
+    alphaGain: options.mode === 'aggressive' ? 1.16 : 1
   });
   const afterNearBlack = nearBlackRatio(trial.image, candidate);
   const afterTexture = textureStats(trial.image, candidate);
@@ -90,7 +90,7 @@ function evaluate(image: NormalizedImage, candidate: Candidate, options: Validat
     score >= threshold &&
     residualReduction >= (mode === 'safe' ? 0.18 : 0.08) &&
     nearBlackIncrease <= MAX_NEAR_BLACK_INCREASE[mode] &&
-    texturePenalty <= (mode === 'safe' ? 0.32 : 0.48);
+    texturePenalty <= (mode === 'safe' ? 0.68 : 0.72);
 
   return {
     ...candidate,

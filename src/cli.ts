@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { readImage, writeImage } from './nodeImage.js';
 import { createBenchmarkFixtures, runBenchmark } from './benchmark.js';
@@ -36,6 +37,11 @@ interface CalibrateCommandOptions {
 }
 
 type CommandOptions = RemoveCommandOptions | BenchmarkCommandOptions | CalibrateCommandOptions;
+
+interface CliStreams {
+  stdout: Pick<NodeJS.WritableStream, 'write'>;
+  stderr: Pick<NodeJS.WritableStream, 'write'>;
+}
 
 function usageText(): string {
   return [
@@ -230,7 +236,7 @@ class RegistryBottomRightPrior implements LayoutPrior {
   generateCandidates(imageWidth: number, imageHeight: number, registry: WatermarkTemplateRegistry): Candidate[] {
     const candidates: Candidate[] = [];
     for (const template of registry.list()) {
-      const margin = template.width <= 64 ? 32 : 64;
+      const margin = template.width === 56 ? 38 : template.width <= 64 ? 32 : 64;
       const x = imageWidth - margin - template.width;
       const y = imageHeight - margin - template.height;
       if (x < 0 || y < 0) continue;
@@ -257,67 +263,74 @@ async function readTemplateRegistry(templatePath: string | undefined): Promise<T
   return new TemplateRegistry([deserializeTemplate(parsed)]);
 }
 
-async function run(): Promise<void> {
-  const options = parseArgs(process.argv.slice(2));
-  if (options === 'help') {
-    printUsage(process.stdout);
-    return;
-  }
-
-  if (options.command === 'benchmark') {
-    const summary = runBenchmark(createBenchmarkFixtures(), { mode: options.mode });
-    if (options.json) {
-      process.stdout.write(`${JSON.stringify(summary)}\n`);
-    } else {
-      process.stdout.write(`benchmark ${summary.mode}: recall=${summary.detectionRecall} falsePositiveRate=${summary.falsePositiveRate}\n`);
+export async function runCli(args = process.argv.slice(2), streams: CliStreams = process): Promise<number> {
+  try {
+    const options = parseArgs(args);
+    if (options === 'help') {
+      printUsage(streams.stdout as NodeJS.WritableStream);
+      return 0;
     }
-    return;
-  }
 
-  if (options.command === 'calibrate') {
-    const clean = await readImage(options.cleanInput);
-    const watermarked = await readImage(options.watermarkedInput);
-    const template = calibrateTemplateFromPair(clean, watermarked, {
-      id: options.id,
-      version: options.version,
-      region: options.region!
+    if (options.command === 'benchmark') {
+      const summary = runBenchmark(createBenchmarkFixtures(), { mode: options.mode });
+      if (options.json) {
+        streams.stdout.write(`${JSON.stringify(summary)}\n`);
+      } else {
+        streams.stdout.write(`benchmark ${summary.mode}: recall=${summary.detectionRecall} falsePositiveRate=${summary.falsePositiveRate}\n`);
+      }
+      return 0;
+    }
+
+    if (options.command === 'calibrate') {
+      const clean = await readImage(options.cleanInput);
+      const watermarked = await readImage(options.watermarkedInput);
+      const template = calibrateTemplateFromPair(clean, watermarked, {
+        id: options.id,
+        version: options.version,
+        region: options.region!
+      });
+      const serialized = serializeTemplate(template);
+      await writeTextAtomically(options.output!, `${JSON.stringify(serialized, null, 2)}\n`);
+      if (options.json) {
+        streams.stdout.write(`${JSON.stringify({ id: serialized.id, width: serialized.width, height: serialized.height, output: options.output })}\n`);
+      } else {
+        streams.stdout.write(`calibrated template ${serialized.id} ${serialized.width}x${serialized.height}\n`);
+      }
+      return 0;
+    }
+
+    const registry = await readTemplateRegistry(options.templatePath);
+    const input = await readImage(options.input);
+    const result = removeWatermark(input, {
+      preset: options.preset,
+      mode: options.mode,
+      detect: registry ? { registry, priors: [new RegistryBottomRightPrior()] } : undefined,
+      validate: registry ? { registry } : undefined,
+      restore: registry ? { registry } : undefined
     });
-    const serialized = serializeTemplate(template);
-    await writeTextAtomically(options.output!, `${JSON.stringify(serialized, null, 2)}\n`);
+    await writeImageAtomically(options.output!, result.image);
+
     if (options.json) {
-      process.stdout.write(`${JSON.stringify({ id: serialized.id, width: serialized.width, height: serialized.height, output: options.output })}\n`);
+      streams.stdout.write(`${JSON.stringify(result.meta)}\n`);
     } else {
-      process.stdout.write(`calibrated template ${serialized.id} ${serialized.width}x${serialized.height}\n`);
+      const status = result.applied ? 'applied' : `skipped: ${result.meta.skipReason ?? 'unknown'}`;
+      streams.stdout.write(`watermark removal ${status}\n`);
     }
-    return;
-  }
-
-  const registry = await readTemplateRegistry(options.templatePath);
-  const input = await readImage(options.input);
-  const result = removeWatermark(input, {
-    preset: options.preset,
-    mode: options.mode,
-    detect: registry ? { registry, priors: [new RegistryBottomRightPrior()] } : undefined,
-    validate: registry ? { registry } : undefined,
-    restore: registry ? { registry } : undefined
-  });
-  await writeImageAtomically(options.output!, result.image);
-
-  if (options.json) {
-    process.stdout.write(`${JSON.stringify(result.meta)}\n`);
-  } else {
-    const status = result.applied ? 'applied' : `skipped: ${result.meta.skipReason ?? 'unknown'}`;
-    process.stdout.write(`watermark removal ${status}\n`);
+    return 0;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === 'help requested') {
+      printUsage(streams.stdout as NodeJS.WritableStream);
+      return 0;
+    }
+    printUsage(streams.stderr as NodeJS.WritableStream);
+    streams.stderr.write(`Error: ${message}\n`);
+    return 1;
   }
 }
 
-run().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  if (message === 'help requested') {
-    printUsage(process.stdout);
-    return;
-  }
-  printUsage();
-  console.error(`Error: ${message}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli().then((code) => {
+    process.exitCode = code;
+  });
+}

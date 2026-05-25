@@ -33,8 +33,8 @@ const restored = restoreWatermark(image, validation.best, { mode: 'safe' });
 
 ## Architecture
 
-- Template registry: built-in synthetic Gemini visible-white templates for `48`, `96`, and `96-new-margin`. These are synthetic approximations for calibration and tests, not official Gemini assets.
-- Layout priors: data-driven Gemini catalog positions. `0.5K` uses a `48x48` logo with `32px` right/bottom margins. `1K`, `2K`, and `4K` use `96x96` with `64px` margins. A secondary `96x96` `192px` margin candidate is included and evidence-gated, including the known `2816x1536` case.
+- Template registry: built-in calibrated visible-white Gemini-style templates for `48x48`, `56x56`, and `96x96`. These are approximations derived from permitted clean/watermarked examples, not official Google assets.
+- Layout priors: data-driven Gemini catalog positions. Observed `1024x1024`, `1184x864`, and `864x1184` images use a `48x48` logo with `32px` right/bottom margins; `1200x1200` uses `56x56` with `38px` margins; `2816x1536` uses `96x96` with `64px` margins.
 - Detector: scores prior-generated candidates with spatial luminance correlation and gradient correlation. Full-image exhaustive scan is opt-in.
 - Validator: trial-restores candidates on a clone, then scores residual reduction, near-black increase, texture penalty, and artifact risk.
 - Restorer: applies reverse normal alpha blending: `original = (observed - alpha * watermarkColor) / (1 - alpha)`.
@@ -74,7 +74,7 @@ watermark-kit remove watermarked.png -o restored.png --template template.json --
 - Does not remove invisible SynthID, provenance metadata, signatures, or arbitrary colored/complex watermarks.
 - Does not perform AI inpainting.
 - Core APIs work on raw RGBA pixels. The Node CLI decodes/encodes PNG only; it does not support JPEG or WebP.
-- Bundled templates are synthetic approximations; the calibration CLI lets users benchmark and tune templates against permitted local samples.
+- Bundled templates are calibrated approximations of visible Gemini-style marks from permitted examples; they are not official Google assets. The calibration CLI lets users benchmark and tune templates against permitted local samples.
 
 ## Development
 

@@ -1,16 +1,21 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { PNG } from 'pngjs';
-import { defaultRegistry, type NormalizedImage, type WatermarkTemplate } from '../src/index.js';
+import { runCli } from '../src/cli.js';
+import { defaultRegistry, serializeTemplate, type NormalizedImage, type WatermarkTemplate } from '../src/index.js';
 import { readPngImage, writePngImage } from '../src/nodeImage.js';
 
-const execFileAsync = promisify(execFile);
-const cliPath = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
+async function runCliCaptured(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+  let stdout = '';
+  let stderr = '';
+  const code = await runCli(args, {
+    stdout: { write: (chunk: string | Uint8Array) => { stdout += chunk.toString(); return true; } },
+    stderr: { write: (chunk: string | Uint8Array) => { stderr += chunk.toString(); return true; } }
+  });
+  return { code, stdout, stderr };
+}
 
 function makeBaseImage(width: number, height: number): NormalizedImage {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -70,22 +75,22 @@ describe('Node PNG image adapter and CLI', () => {
     try {
       const input = join(dir, 'watermarked.png');
       const output = join(dir, 'restored.png');
-      const clean = makeBaseImage(1024, 1024);
-      const template = defaultRegistry.get('gemini-visible-white-96')!;
-      const x = 1024 - 64 - 96;
-      const y = 1024 - 64 - 96;
+      const templatePath = join(dir, 'gemini-real-56-template.json');
+      const clean = makeBaseImage(1200, 1200);
+      const template = defaultRegistry.get('gemini-visible-white-56')!;
+      const x = 1106;
+      const y = 1106;
       const watermarked = overlayTemplate(clean, template, x, y);
       await writePngImage(input, watermarked);
+      await writeFile(templatePath, `${JSON.stringify(serializeTemplate(template))}\n`);
 
-      const { stdout, stderr } = await execFileAsync('npx', ['tsx', cliPath, 'remove', input, '-o', output, '--mode', 'safe', '--json'], {
-        cwd: join(fileURLToPath(new URL('..', import.meta.url))),
-        timeout: 30_000
-      });
+      const { code, stdout, stderr } = await runCliCaptured(['remove', input, '-o', output, '--template', templatePath, '--mode', 'safe', '--json']);
       const diagnostics = JSON.parse(stdout);
       const restored = await readPngImage(output);
       const written = await readFile(output);
       const parsedPng = PNG.sync.read(written);
 
+      expect(code).toBe(0);
       expect(stderr).toBe('');
       expect(diagnostics).toMatchObject({ applied: true, templateId: template.id, x, y });
       expect(parsedPng.width).toBe(clean.width);
