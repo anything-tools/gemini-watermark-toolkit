@@ -82,11 +82,17 @@ function regionMse(a: NormalizedImage, b: NormalizedImage, candidate: Candidate)
 }
 
 describe('synthetic Gemini visible watermark pipeline', () => {
-  it('detects and restores a visible 96px watermark at the official 1K prior', () => {
+  it('registers the calibrated real template sizes', () => {
+    expect(defaultRegistry.get('gemini-visible-white-48')).toMatchObject({ width: 48, height: 48 });
+    expect(defaultRegistry.get('gemini-visible-white-56')).toMatchObject({ width: 56, height: 56 });
+    expect(defaultRegistry.get('gemini-visible-white-96')).toMatchObject({ width: 96, height: 96 });
+  });
+
+  it('detects and restores a visible 48px watermark at the observed 1024x1024 prior', () => {
     const clean = makeBaseImage(1024, 1024);
-    const template = defaultRegistry.get('gemini-visible-white-96')!;
-    const x = 1024 - 64 - 96;
-    const y = 1024 - 64 - 96;
+    const template = defaultRegistry.get('gemini-visible-white-48')!;
+    const x = 944;
+    const y = 944;
     const watermarked = overlayTemplate(clean, template, x, y).image;
 
     const result = removeWatermark(watermarked, { mode: 'safe' });
@@ -108,36 +114,46 @@ describe('synthetic Gemini visible watermark pipeline', () => {
     expect(result.applied).toBe(false);
     expect(result.changed).toBe(false);
     expect(result.meta.skipReason).toMatch(/no-watermark-detected|validation-rejected/);
-    expect(result.image.data).toEqual(clean.data);
+    expect(Buffer.compare(Buffer.from(result.image.data), Buffer.from(clean.data))).toBe(0);
   });
 
-  it('uses the 2816x1536 new-margin catalog prior', () => {
+  it('uses the 2816x1536 calibrated catalog prior', () => {
     const clean = makeBaseImage(2816, 1536);
-    const template = defaultRegistry.get('gemini-visible-white-96-new-margin')!;
-    const x = 2816 - 192 - 96;
-    const y = 1536 - 192 - 96;
+    const template = defaultRegistry.get('gemini-visible-white-96')!;
+    const x = 2656;
+    const y = 1376;
     const watermarked = overlayTemplate(clean, template, x, y).image;
 
     const candidates = detectWatermark(watermarked, { mode: 'safe' });
     expect(candidates[0]).toMatchObject({ templateId: template.id, x, y });
   });
 
-  it('generates official catalog prior positions for 512, 1024, and 2816 widths', () => {
+  it('generates official catalog prior positions for observed Gemini sizes', () => {
     const prior = new GeminiOfficialLayoutPrior();
-    expect(prior.generateCandidates(512, 512, defaultRegistry)[0]).toMatchObject({
-      templateId: 'gemini-visible-white-48',
-      x: 432,
-      y: 432
-    });
     expect(prior.generateCandidates(1024, 1024, defaultRegistry)[0]).toMatchObject({
-      templateId: 'gemini-visible-white-96',
-      x: 864,
-      y: 864
+      templateId: 'gemini-visible-white-48',
+      x: 944,
+      y: 944
+    });
+    expect(prior.generateCandidates(1184, 864, defaultRegistry)[0]).toMatchObject({
+      templateId: 'gemini-visible-white-48',
+      x: 1104,
+      y: 784
+    });
+    expect(prior.generateCandidates(864, 1184, defaultRegistry)[0]).toMatchObject({
+      templateId: 'gemini-visible-white-48',
+      x: 784,
+      y: 1104
+    });
+    expect(prior.generateCandidates(1200, 1200, defaultRegistry)[0]).toMatchObject({
+      templateId: 'gemini-visible-white-56',
+      x: 1106,
+      y: 1106
     });
     expect(prior.generateCandidates(2816, 1536, defaultRegistry)[0]).toMatchObject({
-      templateId: 'gemini-visible-white-96-new-margin',
-      x: 2528,
-      y: 1248
+      templateId: 'gemini-visible-white-96',
+      x: 2656,
+      y: 1376
     });
   });
 });

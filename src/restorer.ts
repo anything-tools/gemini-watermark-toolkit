@@ -3,12 +3,12 @@ import { defaultRegistry } from './registry.js';
 import type { Candidate, NormalizedImage, RestoreOptions, RestoreResult } from './types.js';
 
 const DEFAULT_ALPHA_GAIN = {
-  safe: 0.9,
+  safe: 1,
   aggressive: 1.18
 } as const;
 
 const DEFAULT_ALPHA_GAIN_SEARCH = {
-  safe: [0.9],
+  safe: [1],
   aggressive: [1, 1.08, 1.16, 1.24, 1.32]
 } as const;
 

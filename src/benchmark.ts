@@ -147,13 +147,13 @@ function makeNegativeFixture(id: string, description: string, width: number, hei
 export function createBenchmarkFixtures(): BenchmarkFixture[] {
   return [
     makePositiveFixture(
-      'synthetic-gemini-96-1k-official',
-      'Synthetic 1024x1024 Gemini visible watermark at official 1K prior.',
+      'synthetic-gemini-48-1024x1024-observed',
+      'Synthetic 1024x1024 Gemini visible watermark at observed 48px prior.',
       1024,
       1024,
-      'gemini-visible-white-96',
-      864,
-      864
+      'gemini-visible-white-48',
+      944,
+      944
     ),
     makeNegativeFixture(
       'synthetic-clean-1k-negative',
@@ -162,13 +162,13 @@ export function createBenchmarkFixtures(): BenchmarkFixture[] {
       1024
     ),
     makePositiveFixture(
-      'synthetic-gemini-96-new-margin-2816x1536',
-      'Synthetic 2816x1536 Gemini visible watermark at known new-margin prior.',
+      'synthetic-gemini-96-2816x1536-observed',
+      'Synthetic 2816x1536 Gemini visible watermark at observed 96px prior.',
       2816,
       1536,
-      'gemini-visible-white-96-new-margin',
-      2528,
-      1248
+      'gemini-visible-white-96',
+      2656,
+      1376
     )
   ];
 }

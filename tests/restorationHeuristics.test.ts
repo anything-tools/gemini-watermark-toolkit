@@ -64,9 +64,9 @@ function regionMse(a: NormalizedImage, b: NormalizedImage, candidate: Candidate)
 describe('advanced restoration heuristics', () => {
   it('selects an alpha-gain refinement that improves aggressive restoration quality', () => {
     const clean = makeBaseImage(1024, 1024);
-    const template = defaultRegistry.get('gemini-visible-white-96')!;
-    const x = 1024 - 64 - 96;
-    const y = 1024 - 64 - 96;
+    const template = defaultRegistry.get('gemini-visible-white-48')!;
+    const x = 944;
+    const y = 944;
     const watermarked = overlayTemplate(clean, template, x, y, 1.18);
 
     const baseline = restoreWatermark(watermarked, {
@@ -100,7 +100,7 @@ describe('advanced restoration heuristics', () => {
     expect(result.meta.refinement).toBe('none');
     expect(result.meta.passCount).toBe(0);
     expect(result.meta.alphaGain).toBeUndefined();
-    expect(result.image.data).toEqual(clean.data);
+    expect(Buffer.compare(Buffer.from(result.image.data), Buffer.from(clean.data))).toBe(0);
   });
 
   it('rejects unsafe alpha-gain search values and out-of-bounds candidates', () => {
@@ -126,6 +126,6 @@ describe('advanced restoration heuristics', () => {
     expect(outOfBounds.changed).toBe(false);
     expect(outOfBounds.refinement).toBe('none');
     expect(outOfBounds.passCount).toBe(0);
-    expect(outOfBounds.image.data).toEqual(clean.data);
+    expect(Buffer.compare(Buffer.from(outOfBounds.image.data), Buffer.from(clean.data))).toBe(0);
   });
 });
